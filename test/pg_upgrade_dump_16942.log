@@ -1,0 +1,47 @@
+command: "/usr/local/opt/postgresql/bin/pg_dump" --host /usr/local/var/log --port 50432 --username bar --schema-only --quote-all-identifiers --binary-upgrade --format=custom  --file="pg_upgrade_dump_16942.custom" 'dbname=foo_api_es_test' >> "pg_upgrade_dump_16942.log" 2>&1
+
+
+command: "/usr/local/opt/postgresql/bin/pg_restore" --host /usr/local/var/log --port 50432 --username bar --create --exit-on-error --verbose --dbname template1 "pg_upgrade_dump_16942.custom" >> "pg_upgrade_dump_16942.log" 2>&1
+pg_restore: connecting to database for restore
+pg_restore: creating DATABASE "foo_api_es_test"
+pg_restore: connecting to new database "foo_api_es_test"
+pg_restore: connecting to database "foo_api_es_test" as user "bar"
+pg_restore: creating DATABASE PROPERTIES "foo_api_es_test"
+pg_restore: connecting to new database "foo_api_es_test"
+pg_restore: connecting to database "foo_api_es_test" as user "bar"
+pg_restore: creating pg_largeobject "pg_largeobject"
+pg_restore: creating pg_largeobject_metadata "pg_largeobject_metadata"
+pg_restore: creating FUNCTION "public.notify_events()"
+pg_restore: creating TABLE "public.events"
+pg_restore: creating TABLE "public.schema_migrations"
+pg_restore: creating TABLE "public.snapshots"
+pg_restore: creating TABLE "public.stream_events"
+pg_restore: creating TABLE "public.streams"
+pg_restore: creating SEQUENCE "public.streams_stream_id_seq"
+pg_restore: creating SEQUENCE OWNED BY "public.streams_stream_id_seq"
+pg_restore: creating TABLE "public.subscriptions"
+pg_restore: creating SEQUENCE "public.subscriptions_subscription_id_seq"
+pg_restore: creating SEQUENCE OWNED BY "public.subscriptions_subscription_id_seq"
+pg_restore: creating DEFAULT "public.streams stream_id"
+pg_restore: creating DEFAULT "public.subscriptions subscription_id"
+pg_restore: executing SEQUENCE SET streams_stream_id_seq
+pg_restore: executing SEQUENCE SET subscriptions_subscription_id_seq
+pg_restore: creating CONSTRAINT "public.events events_pkey"
+pg_restore: creating CONSTRAINT "public.schema_migrations schema_migrations_pkey"
+pg_restore: creating CONSTRAINT "public.snapshots snapshots_pkey"
+pg_restore: creating CONSTRAINT "public.stream_events stream_events_pkey"
+pg_restore: creating CONSTRAINT "public.streams streams_pkey"
+pg_restore: creating CONSTRAINT "public.subscriptions subscriptions_pkey"
+pg_restore: creating INDEX "public.ix_stream_events"
+pg_restore: creating INDEX "public.ix_streams_stream_uuid"
+pg_restore: creating INDEX "public.ix_subscriptions_stream_uuid_subscription_name"
+pg_restore: creating RULE "public.events no_delete_events"
+pg_restore: creating RULE "public.stream_events no_delete_stream_events"
+pg_restore: creating RULE "public.events no_update_events"
+pg_restore: creating RULE "public.stream_events no_update_stream_events"
+pg_restore: creating TRIGGER "public.streams event_notification"
+pg_restore: creating FK CONSTRAINT "public.stream_events stream_events_event_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.stream_events stream_events_original_stream_id_fkey"
+pg_restore: creating FK CONSTRAINT "public.stream_events stream_events_stream_id_fkey"
+
+
