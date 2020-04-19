@@ -1,0 +1,12 @@
+#+TITLE: MLog
+
+* Purpose
+https://bd.scoiatael.dev/projects/matrix-logs/
+* [33%] 0.1.0
+** DONE parse arguments, read from file or stdin :interactive:batch:
+** TODO output the closest pattern along with current line :interactive:
+** TODO color based on the closest pattern :interactive:
+* [0%] 0.2.0
+** TODO allow filtering based on pattern :batch:
+* [0%] 0.3.0
+** TODO mutate patterns to generalize them :batch:interactive:
