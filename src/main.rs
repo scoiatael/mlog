@@ -22,6 +22,12 @@ enum AddOrClosest {
 }
 
 impl PatternBuffer {
+    fn add(mut self, other: &String) -> AddOrClosest {
+        self.patterns.push_back(Pattern(other.clone()));
+
+        AddOrClosest::Added(self)
+    }
+
     fn closest(&self, other: &String) -> Option<(f64, Pattern)> {
         match self
             .patterns
@@ -34,18 +40,18 @@ impl PatternBuffer {
         }
     }
 
-    fn add_or_closest(mut self, other: &String, target: f64) -> AddOrClosest {
+    fn add_or_closest(self, other: &String, target: f64) -> AddOrClosest {
         use AddOrClosest::*;
 
-        let empty_pattern = Pattern("".to_string());
-
-        let (max, best) = self.closest(&other).unwrap_or((target, empty_pattern));
-
-        if max <= target {
-            self.patterns.push_back(Pattern(other.clone()));
-            Added(self)
-        } else {
-            Closest(self, best)
+        match self.closest(&other) {
+            None => self.add(other),
+            Some((max, best)) => {
+                if max <= target {
+                    self.add(other)
+                } else {
+                    Closest(self, best)
+                }
+            }
         }
     }
 }
