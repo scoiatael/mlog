@@ -8,7 +8,7 @@ use std::io;
 use std::io::{BufRead, BufReader};
 use strsim::normalized_levenshtein;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Pattern(String);
 
 #[derive(Debug)]
@@ -16,16 +16,36 @@ struct PatternBuffer {
     patterns: LinkedList<Pattern>,
 }
 
+enum AddOrClosest {
+    Added(PatternBuffer),
+    Closest(PatternBuffer, Pattern),
+}
+
 impl PatternBuffer {
-    fn try_add(&mut self, other: String, target: f64) {
-        let max = self
+    fn closest(&self, other: &String) -> Option<(f64, Pattern)> {
+        match self
             .patterns
             .iter()
-            .map(|p| normalized_levenshtein(&p.0, &other))
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap_or(target);
+            .map(|p| (normalized_levenshtein(&p.0, &other), p))
+            .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
+        {
+            None => None,
+            Some((max, p)) => Some((max, (*p).clone())),
+        }
+    }
+
+    fn add_or_closest(mut self, other: &String, target: f64) -> AddOrClosest {
+        use AddOrClosest::*;
+
+        let empty_pattern = Pattern("".to_string());
+
+        let (max, best) = self.closest(&other).unwrap_or((target, empty_pattern));
+
         if max <= target {
-            self.patterns.push_back(Pattern(other));
+            self.patterns.push_back(Pattern(other.clone()));
+            Added(self)
+        } else {
+            Closest(self, best)
         }
     }
 }
@@ -37,17 +57,30 @@ struct Args<'a> {
 }
 
 fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
+    use AddOrClosest::*;
+
     let mut buffer = PatternBuffer {
         patterns: LinkedList::new(),
     };
 
     for line in args.input.lines() {
         let l = line?;
-        if args.interactive {
-            println!("{}", l)
-        }
         if l.len() > 0 {
-            buffer.try_add(l, args.similarity);
+            match buffer.add_or_closest(&l, args.similarity) {
+                Closest(b, var) => {
+                    buffer = b;
+                    if args.interactive {
+                        println!("{} => {}", l, var.0)
+                    }
+                }
+                Added(b) => {
+                    buffer = b;
+
+                    if args.interactive {
+                        println!("{}", l)
+                    }
+                }
+            }
         }
     }
     Ok(buffer)
