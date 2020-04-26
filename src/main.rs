@@ -1,4 +1,5 @@
-extern crate strsim;
+use colored::*;
+use mlog::*;
 
 use std::collections::LinkedList;
 use std::env;
@@ -6,7 +7,6 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader};
-use strsim::normalized_levenshtein;
 
 #[derive(Debug, Clone)]
 struct Pattern(String);
@@ -18,7 +18,7 @@ struct PatternBuffer {
 
 enum AddOrClosest {
     Added(PatternBuffer),
-    Closest(PatternBuffer, Pattern),
+    Closest(PatternBuffer, Levenshtein),
 }
 
 impl PatternBuffer {
@@ -28,16 +28,12 @@ impl PatternBuffer {
         AddOrClosest::Added(self)
     }
 
-    fn closest(&self, other: &String) -> Option<(f64, Pattern)> {
-        match self
-            .patterns
+    fn closest(&self, other: &String) -> Option<(f64, Levenshtein)> {
+        self.patterns
             .iter()
-            .map(|p| (normalized_levenshtein(&p.0, &other), p))
+            .map(|p| (levenshtein(&p.0, &other), p))
+            .map(|(l, p)| (normalize(&p.0, &other, &l), l))
             .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
-        {
-            None => None,
-            Some((max, p)) => Some((max, (*p).clone())),
-        }
     }
 
     fn add_or_closest(self, other: &String, target: f64) -> AddOrClosest {
@@ -45,11 +41,11 @@ impl PatternBuffer {
 
         match self.closest(&other) {
             None => self.add(other),
-            Some((max, best)) => {
+            Some((max, diff)) => {
                 if max <= target {
                     self.add(other)
                 } else {
-                    Closest(self, best)
+                    Closest(self, diff)
                 }
             }
         }
@@ -60,6 +56,23 @@ struct Args<'a> {
     input: Box<dyn BufRead + 'a>,
     interactive: bool,
     similarity: f64,
+}
+
+fn colorize(diff: &Levenshtein) -> Vec<ColoredString> {
+    use LevenshteinOp::*;
+
+    let mut s = Vec::with_capacity(diff.len());
+
+    for op in diff.iter() {
+        match op {
+            Keep(x) => s.push(format!("{}", x).dimmed()),
+            Substitute(_, x) => s.push(format!("{}", x).red()),
+            Insert(x) => s.push(format!("{}", x).red()),
+            _ => {}
+        };
+    }
+
+    s
 }
 
 fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
@@ -73,17 +86,20 @@ fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
         let l = line?;
         if l.len() > 0 {
             match buffer.add_or_closest(&l, args.similarity) {
-                Closest(b, var) => {
+                Closest(b, diff) => {
                     buffer = b;
                     if args.interactive {
-                        println!("{} => {}", l, var.0)
+                        for s in colorize(&diff).iter() {
+                            print!("{}", s)
+                        }
+                        println!("")
                     }
                 }
                 Added(b) => {
                     buffer = b;
 
                     if args.interactive {
-                        println!("{}", l)
+                        println!("{}", l.blue())
                     }
                 }
             }
