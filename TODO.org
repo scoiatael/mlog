@@ -2,13 +2,18 @@
 
 * Purpose
 https://bd.scoiatael.dev/projects/matrix-logs/
-* [60%] 0.1.0
+* [66%] 0.1.0
 ** DONE parse arguments, read from file or stdin :interactive:batch:
 ** DONE output the closest pattern along with current line :interactive:
 ** DONE color based on the closest pattern :interactive:
-** TODO randomize colour per pattern :interactive:
-** TODO optimize levenshtein :batch:interactive:
+** DONE randomize colour per pattern :interactive:
+** TODO optimize (both algo and clones) :batch:interactive:
+** TODO avoid alternating colours due to parts of word being substituted
 * [0%] 0.2.0
+** TODO build script, CD
 ** TODO allow filtering based on pattern :batch:
+** TODO add configurable target
+** TODO add option to ignore prefix of certain length
 * [0%] 0.3.0
-** TODO mutate patterns to generalize them :batch:interactive:
+** TODO mutate pattern buffer to limit amount of patterns held :batch:interactive:
+keep max score along with pattern, use it to remove patterns with highest score

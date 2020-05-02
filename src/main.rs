@@ -9,31 +9,61 @@ use std::io;
 use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Clone)]
-struct Pattern(String);
+struct Pattern(String, Color);
 
 #[derive(Debug)]
 struct PatternBuffer {
     patterns: LinkedList<Pattern>,
+    current_color: Color,
 }
 
 enum AddOrClosest {
-    Added(PatternBuffer),
-    Closest(PatternBuffer, Levenshtein),
+    Added(PatternBuffer, Pattern),
+    Closest(PatternBuffer, Pattern, Levenshtein),
 }
 
 impl PatternBuffer {
-    fn add(mut self, other: &String) -> AddOrClosest {
-        self.patterns.push_back(Pattern(other.clone()));
+    fn next_color(&mut self) -> Color {
+        use Color::*;
 
-        AddOrClosest::Added(self)
+        let color = match self.current_color {
+            Red => Green,
+            Green => Yellow,
+            Yellow => Blue,
+            Blue => Magenta,
+            Magenta => Cyan,
+            Cyan => White,
+            White => BrightBlack,
+            BrightBlack => BrightRed,
+            BrightRed => BrightGreen,
+            BrightGreen => BrightYellow,
+            BrightYellow => BrightBlue,
+            BrightBlue => BrightMagenta,
+            BrightMagenta => BrightCyan,
+            BrightCyan => BrightWhite,
+            BrightWhite => Red,
+            Black => Red,
+        };
+
+        self.current_color = color;
+
+        color
     }
 
-    fn closest(&self, other: &String) -> Option<(f64, Levenshtein)> {
+    fn add(mut self, other: &String) -> AddOrClosest {
+        let color = self.next_color();
+        let pattern = Pattern(other.clone(), color);
+        self.patterns.push_back(pattern.clone());
+
+        AddOrClosest::Added(self, pattern)
+    }
+
+    fn closest(&self, other: &String) -> Option<(f64, Pattern, Levenshtein)> {
         self.patterns
             .iter()
             .map(|p| (levenshtein(&p.0, &other), p))
-            .map(|(l, p)| (normalize(&p.0, &other, &l), l))
-            .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
+            .map(|(l, p)| (normalize(&p.0, &other, &l), p.clone(), l))
+            .max_by(|(a, _, _), (b, _, _)| a.partial_cmp(b).unwrap())
     }
 
     fn add_or_closest(self, other: &String, target: f64) -> AddOrClosest {
@@ -41,11 +71,11 @@ impl PatternBuffer {
 
         match self.closest(&other) {
             None => self.add(other),
-            Some((max, diff)) => {
+            Some((max, pattern, diff)) => {
                 if max <= target {
                     self.add(other)
                 } else {
-                    Closest(self, diff)
+                    Closest(self, pattern, diff)
                 }
             }
         }
@@ -58,16 +88,16 @@ struct Args<'a> {
     similarity: f64,
 }
 
-fn colorize(diff: &Levenshtein) -> Vec<ColoredString> {
+fn colorize(diff: &Levenshtein, pattern: &Pattern) -> Vec<ColoredString> {
     use LevenshteinOp::*;
 
     let mut s = Vec::with_capacity(diff.len());
 
     for op in diff.iter() {
         match op {
-            Keep(x) => s.push(format!("{}", x).dimmed()),
-            Substitute(_, x) => s.push(format!("{}", x).red()),
-            Insert(x) => s.push(format!("{}", x).red()),
+            Keep(x) => s.push(format!("{}", x).color(pattern.1).dimmed()),
+            Substitute(_, x) => s.push(format!("{}", x).color(pattern.1)),
+            Insert(x) => s.push(format!("{}", x).color(pattern.1)),
             _ => {}
         };
     }
@@ -80,26 +110,27 @@ fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
 
     let mut buffer = PatternBuffer {
         patterns: LinkedList::new(),
+        current_color: Color::BrightBlack,
     };
 
     for line in args.input.lines() {
         let l = line?;
         if l.len() > 0 {
             match buffer.add_or_closest(&l, args.similarity) {
-                Closest(b, diff) => {
+                Closest(b, p, diff) => {
                     buffer = b;
                     if args.interactive {
-                        for s in colorize(&diff).iter() {
+                        for s in colorize(&diff, &p).iter() {
                             print!("{}", s)
                         }
                         println!("")
                     }
                 }
-                Added(b) => {
+                Added(b, p) => {
                     buffer = b;
 
                     if args.interactive {
-                        println!("{}", l.blue())
+                        println!("{}", l.color(p.1))
                     }
                 }
             }
