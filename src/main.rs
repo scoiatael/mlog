@@ -82,12 +82,6 @@ impl PatternBuffer {
     }
 }
 
-struct Args<'a> {
-    input: Box<dyn BufRead + 'a>,
-    interactive: bool,
-    similarity: f64,
-}
-
 fn colorize(diff: &Levenshtein, pattern: &Pattern) -> Vec<ColoredString> {
     use LevenshteinOp::*;
 
@@ -105,7 +99,45 @@ fn colorize(diff: &Levenshtein, pattern: &Pattern) -> Vec<ColoredString> {
     s
 }
 
-fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
+enum SourceOptions {
+    FromFile(String),
+    FromStdin,
+}
+
+struct Args {
+    source: SourceOptions,
+    interactive: bool,
+    similarity: f64,
+}
+
+enum IterableSource {
+    FromStdin(io::Lines<BufReader<io::Stdin>>),
+    FromFile(io::Lines<BufReader<File>>),
+}
+
+impl Iterator for IterableSource {
+    type Item = Result<String, io::Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            IterableSource::FromStdin(s) => s.next(),
+            IterableSource::FromFile(f) => f.next(),
+        }
+    }
+}
+
+fn lines(opts: SourceOptions) -> IterableSource {
+    match opts {
+        SourceOptions::FromStdin => {
+            return IterableSource::FromStdin(BufReader::new(io::stdin()).lines())
+        }
+        SourceOptions::FromFile(filename) => {
+            return IterableSource::FromFile(BufReader::new(File::open(filename).unwrap()).lines())
+        }
+    }
+}
+
+fn run(args: Args) -> Result<PatternBuffer, io::Error> {
     use AddOrClosest::*;
 
     let mut buffer = PatternBuffer {
@@ -113,7 +145,7 @@ fn run<'a>(args: Args<'a>) -> Result<PatternBuffer, io::Error> {
         current_color: Color::BrightBlack,
     };
 
-    for line in args.input.lines() {
+    for line in lines(args.source) {
         let l = line?;
         if l.len() > 0 {
             match buffer.add_or_closest(&l, args.similarity) {
@@ -144,14 +176,14 @@ fn main() {
     let run_args = match args.len() {
         1 => {
             (Args {
-                input: Box::new(BufReader::new(io::stdin())),
+                source: SourceOptions::FromStdin,
                 interactive: true,
                 similarity: 0.6,
             })
         }
         _ => {
             (Args {
-                input: Box::new(BufReader::new(File::open(args[1].clone()).unwrap())),
+                source: SourceOptions::FromFile(args[1].clone()),
                 interactive: false,
                 similarity: 0.6,
             })
