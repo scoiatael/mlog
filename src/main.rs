@@ -85,18 +85,48 @@ impl PatternBuffer {
 fn colorize(diff: &Levenshtein, pattern: &Pattern) -> Vec<ColoredString> {
     use LevenshteinOp::*;
 
-    let mut s = Vec::with_capacity(diff.len());
+    let mut buf = Vec::with_capacity(diff.len());
 
-    for op in diff.iter() {
-        match op {
-            Keep(x) => s.push(format!("{}", x).color(pattern.1).dimmed()),
-            Substitute(_, x) => s.push(format!("{}", x).color(pattern.1)),
-            Insert(x) => s.push(format!("{}", x).color(pattern.1)),
-            _ => {}
-        };
+    let split_buf = diff.iter().collect::<Vec<&LevenshteinOp>>();
+    let split = split_buf.split(|op| match op {
+        Keep(x) => *x == ' ',
+        Substitute(_, x) => *x == ' ',
+        Insert(x) => *x == 'x',
+        _ => false,
+    });
+
+    for (idx, s) in split.enumerate() {
+        let chs = s
+            .iter()
+            .map(|op| match op {
+                Keep(x) => Some(x),
+                Substitute(_, x) => Some(x),
+                Insert(x) => Some(x),
+                _ => None,
+            })
+            .fold(Vec::with_capacity(s.len()), |mut arr, it| {
+                if it.is_some() {
+                    arr.push(*(it.unwrap()))
+                }
+                arr
+            });
+        let same = s
+            .iter()
+            .map(|op| match op {
+                Keep(_) => true,
+                Substitute(_, _) => false,
+                Insert(_) => false,
+                _ => false,
+            })
+            .all(|x| x);
+        let str = format!("{}", chs.iter().collect::<String>()).color(pattern.1);
+        if idx > 0 {
+            buf.push(" ".color(pattern.1));
+        }
+        buf.push(if same { str.dimmed() } else { str });
     }
 
-    s
+    buf
 }
 
 enum SourceOptions {

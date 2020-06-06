@@ -2,13 +2,13 @@
 
 * Purpose
 https://bd.scoiatael.dev/projects/matrix-logs/
-* [66%] 0.1.0
+* [83%] 0.1.0
 ** DONE parse arguments, read from file or stdin :interactive:batch:
 ** DONE output the closest pattern along with current line :interactive:
 ** DONE color based on the closest pattern :interactive:
 ** DONE randomize colour per pattern :interactive:
+** DONE avoid alternating colours due to parts of word being substituted
 ** TODO optimize (both algo and clones) :batch:interactive:
-** TODO avoid alternating colours due to parts of word being substituted
 * [0%] 0.2.0
 ** TODO build script, CD
 ** TODO allow filtering based on pattern :batch:
