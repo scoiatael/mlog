@@ -90,22 +90,6 @@ pub fn levenshtein(a: &str, b: &str) -> Vec<LevenshteinOp> {
     operations
 }
 
-fn count_nonkeep(l: &Levenshtein) -> usize {
-    l.iter()
-        .filter(|op| match op {
-            LevenshteinOp::Keep(_) => false,
-            _ => true,
-        })
-        .count()
-}
-
-pub fn normalize(a: &str, b: &str, l: &Levenshtein) -> f64 {
-    if a.is_empty() && b.is_empty() {
-        return 1.0;
-    }
-    1.0 - (count_nonkeep(l) as f64) / (a.chars().count().max(b.chars().count()) as f64)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

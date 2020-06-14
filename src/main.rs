@@ -1,5 +1,6 @@
 use colored::*;
 use mlog::*;
+use strsim::normalized_levenshtein;
 
 use std::collections::LinkedList;
 use std::env;
@@ -21,6 +22,8 @@ enum AddOrClosest {
     Added(PatternBuffer, Pattern),
     Closest(PatternBuffer, Pattern, Levenshtein),
 }
+
+const MAX_SIZE: usize = 32;
 
 impl PatternBuffer {
     fn next_color(&mut self) -> Color {
@@ -58,12 +61,12 @@ impl PatternBuffer {
         AddOrClosest::Added(self, pattern)
     }
 
-    fn closest(&self, other: &String) -> Option<(f64, Pattern, Levenshtein)> {
+    fn closest(&self, other: &String) -> Option<(f64, Pattern)> {
         self.patterns
             .iter()
-            .map(|p| (levenshtein(&p.0, &other), p))
-            .map(|(l, p)| (normalize(&p.0, &other, &l), p.clone(), l))
-            .max_by(|(a, _, _), (b, _, _)| a.partial_cmp(b).unwrap())
+            .map(|p| (normalized_levenshtein(&p.0, &other), p))
+            .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
+            .map(|(a, p)| (a, p.clone()))
     }
 
     fn add_or_closest(self, other: &String, target: f64) -> AddOrClosest {
@@ -71,10 +74,11 @@ impl PatternBuffer {
 
         match self.closest(&other) {
             None => self.add(other),
-            Some((max, pattern, diff)) => {
-                if max <= target {
+            Some((max, pattern)) => {
+                if max <= target && self.patterns.len() < MAX_SIZE {
                     self.add(other)
                 } else {
+                    let diff = levenshtein(&pattern.0, other);
                     Closest(self, pattern, diff)
                 }
             }
@@ -222,5 +226,5 @@ fn main() {
 
     let buffer = run(run_args).unwrap();
 
-    println!("{:#?}", buffer)
+    println!("Found {:#?} patterns", buffer.patterns.len())
 }
