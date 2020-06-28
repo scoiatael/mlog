@@ -8,4 +8,3 @@ edition = "2018"
 
 [dependencies]
 colored = "1.9"
-strsim = "0.10.0"

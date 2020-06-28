@@ -1,6 +1,5 @@
 use colored::*;
 use mlog::*;
-use strsim::normalized_levenshtein;
 
 use std::collections::LinkedList;
 use std::env;
@@ -10,12 +9,13 @@ use std::io;
 use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Clone)]
-struct Pattern(String, Color);
+struct Pattern(String, word2vec::Repr, Color);
 
 #[derive(Debug)]
 struct PatternBuffer {
     patterns: LinkedList<Pattern>,
     current_color: Color,
+    word_to_vec: Embedding,
 }
 
 enum AddOrClosest {
@@ -55,17 +55,24 @@ impl PatternBuffer {
 
     fn add(mut self, other: &String) -> AddOrClosest {
         let color = self.next_color();
-        let pattern = Pattern(other.clone(), color);
+        self.word_to_vec.insert(other.to_string());
+        let pattern = Pattern(
+            other.clone(),
+            self.word_to_vec.repr(other.to_string()),
+            color,
+        );
         self.patterns.push_back(pattern.clone());
 
         AddOrClosest::Added(self, pattern)
     }
 
     fn closest(&self, other: &String) -> Option<(f64, Pattern)> {
+        let r = self.word_to_vec.repr(other.to_string());
+
         self.patterns
             .iter()
-            .map(|p| (normalized_levenshtein(&p.0, &other), p))
-            .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
+            .map(|p| (normalized_distance(&p.1, &r), p))
+            .min_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
             .map(|(a, p)| (a, p.clone()))
     }
 
@@ -74,8 +81,8 @@ impl PatternBuffer {
 
         match self.closest(&other) {
             None => self.add(other),
-            Some((max, pattern)) => {
-                if max <= target && self.patterns.len() < MAX_SIZE {
+            Some((closest_distance, pattern)) => {
+                if closest_distance >= target && self.patterns.len() < MAX_SIZE {
                     self.add(other)
                 } else {
                     let diff = levenshtein(&pattern.0, other);
@@ -123,9 +130,9 @@ fn colorize(diff: &Levenshtein, pattern: &Pattern) -> Vec<ColoredString> {
                 _ => false,
             })
             .all(|x| x);
-        let str = format!("{}", chs.iter().collect::<String>()).color(pattern.1);
+        let str = format!("{}", chs.iter().collect::<String>()).color(pattern.2);
         if idx > 0 {
-            buf.push(" ".color(pattern.1));
+            buf.push(" ".color(pattern.2));
         }
         buf.push(if same { str.dimmed() } else { str });
     }
@@ -177,6 +184,7 @@ fn run(args: Args) -> Result<PatternBuffer, io::Error> {
     let mut buffer = PatternBuffer {
         patterns: LinkedList::new(),
         current_color: Color::BrightBlack,
+        word_to_vec: Embedding::new(),
     };
 
     for line in lines(args.source) {
@@ -187,19 +195,21 @@ fn run(args: Args) -> Result<PatternBuffer, io::Error> {
                     buffer = b;
                     if args.interactive {
                         for s in colorize(&diff, &p).iter() {
-                            print!("{}", s)
+                            print!("{}", s);
                         }
-                        println!("")
                     }
                 }
                 Added(b, p) => {
                     buffer = b;
 
                     if args.interactive {
-                        println!("{}", l.color(p.1))
+                        print!("{}", l.color(p.2));
                     }
                 }
             }
+        }
+        if args.interactive {
+            println!("");
         }
     }
     Ok(buffer)
@@ -207,21 +217,18 @@ fn run(args: Args) -> Result<PatternBuffer, io::Error> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let similarity = 0.9255;
     let run_args = match args.len() {
-        1 => {
-            (Args {
-                source: SourceOptions::FromStdin,
-                interactive: true,
-                similarity: 0.6,
-            })
-        }
-        _ => {
-            (Args {
-                source: SourceOptions::FromFile(args[1].clone()),
-                interactive: false,
-                similarity: 0.6,
-            })
-        }
+        1 => Args {
+            source: SourceOptions::FromStdin,
+            interactive: true,
+            similarity: similarity,
+        },
+        _ => Args {
+            source: SourceOptions::FromFile(args[1].clone()),
+            interactive: false,
+            similarity: similarity,
+        },
     };
 
     let buffer = run(run_args).unwrap();

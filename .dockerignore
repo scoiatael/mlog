@@ -1,0 +1,5 @@
+/benchmark/
+/target/
+/*
+!/src
+!/Cargo.*
