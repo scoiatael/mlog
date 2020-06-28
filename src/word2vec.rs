@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 pub type Word = Vec<char>;
 pub type Counter = usize;
-pub type Repr = Vec<Counter>;
+pub type Repr = HashMap<Counter, i8>;
 
 #[derive(Debug)]
 pub struct Embedding {
@@ -36,14 +36,13 @@ impl Embedding {
     pub fn repr(&self, line: String) -> Repr {
         let chars = line.chars().collect::<Vec<char>>();
         let split = chars.split(|c| *c == ' ');
-        let mut r = Vec::with_capacity(self.current_idx);
-        r.resize(self.current_idx, 0);
+        let mut r = Repr::new();
 
         for word in split {
             let entry = self.words.get(&word.to_vec());
             match entry {
                 Some(v) => {
-                    r[*v] += 1;
+                    r.entry(*v).and_modify(|e| *e += 1).or_insert(1);
                 }
                 _ => {}
             }
@@ -70,7 +69,10 @@ mod tests {
         let mut embedding = Embedding::new();
         embedding.insert(line.to_string());
 
-        assert_eq!(embedding.repr(line.to_string()), vec![1, 1, 1, 1],)
+        assert_eq!(
+            embedding.repr(line.to_string()),
+            [(0, 1), (1, 1), (2, 1), (3, 1)].iter().cloned().collect(),
+        )
     }
 
     #[test]
@@ -79,10 +81,7 @@ mod tests {
         let mut embedding = Embedding::new();
         embedding.insert(line.to_string());
 
-        assert_eq!(
-            embedding.repr("nothing matches".to_string()),
-            vec![0, 0, 0, 0],
-        )
+        assert_eq!(embedding.repr("nothing matches".to_string()), Repr::new(),)
     }
 
     #[test]
@@ -93,7 +92,7 @@ mod tests {
 
         assert_eq!(
             embedding.repr("some words matches matches".to_string()),
-            vec![1, 0, 0, 0, 0, 2],
+            [(0, 1), (5, 2)].iter().cloned().collect(),
         )
     }
 }

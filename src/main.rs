@@ -23,7 +23,7 @@ enum AddOrClosest {
     Closest(PatternBuffer, Pattern, Levenshtein),
 }
 
-const MAX_SIZE: usize = 32;
+const MAX_SIZE: usize = 512;
 
 impl PatternBuffer {
     fn next_color(&mut self) -> Color {
@@ -217,7 +217,7 @@ fn run(args: Args) -> Result<PatternBuffer, io::Error> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let similarity = 0.9255;
+    let similarity = 0.4;
     let run_args = match args.len() {
         1 => Args {
             source: SourceOptions::FromStdin,
